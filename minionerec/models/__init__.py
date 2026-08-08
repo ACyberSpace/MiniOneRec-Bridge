@@ -1,11 +1,6 @@
-"""Causal collaborative-signal integration for MiniOneRec."""
+"""Model components for semantic-behavior generative recommendation."""
 
-from .data import (
-    CollaborativeDataCollator,
-    CollaborativeEvalSidDataset,
-    CollaborativeSidSFTDataset,
-)
-from .model import (
+from .collaborative import (
     COLLAB_TOKEN,
     CausalDINEncoder,
     CollaborativeCausalLM,
@@ -19,10 +14,7 @@ __all__ = [
     "COLLAB_TOKEN",
     "CausalDINEncoder",
     "CollaborativeCausalLM",
-    "CollaborativeDataCollator",
-    "CollaborativeEvalSidDataset",
     "CollaborativeProjector",
-    "CollaborativeSidSFTDataset",
     "DINConfig",
     "load_collaborative_adapter",
     "load_din_checkpoint",

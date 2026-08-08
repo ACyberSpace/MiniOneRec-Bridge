@@ -7,8 +7,8 @@ from typing import Any, Dict, List
 
 import torch
 
-from .model import COLLAB_TOKEN
-from data import EvalSidDataset, SidSFTDataset
+from minionerec.models.collaborative import COLLAB_TOKEN
+from .datasets import EvalSidDataset, SidSFTDataset
 
 
 def _causal_history(row: Any, max_history_len: int, padding_idx: int) -> Dict[str, List[int]]:

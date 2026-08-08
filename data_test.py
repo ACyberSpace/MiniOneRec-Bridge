@@ -1,3 +1,4 @@
+
 import unittest
 import tempfile
 import os
@@ -7,9 +8,7 @@ import sys
 import random
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from data import (
-    SFTData, D3Dataset, EvalD3Dataset, EvalSidDataset,
-    SidDataset, SidSFTDataset, SidItemFeatDataset, RLTitle2SidDataset,
-    RLSid2TitleDataset, RLSidhis2TitleDataset, FusionSeqRecDataset,
+    SFTData, EvalSidDataset, SidSFTDataset, SidItemFeatDataset, FusionSeqRecDataset,
     TitleHistory2SidSFTDataset, PreferenceSFTDataset, UserPreference2sidSFTDataset
 )
 class MockTokenizer:
@@ -116,43 +115,6 @@ class TestDataModule(unittest.TestCase):
         self.assertEqual(len(dataset), 1)
         self.assertTrue(hasattr(dataset, 'inputs'))
 
-    def test_D3Dataset_initialization(self):
-        """Test D3Dataset initialization"""
-        dataset = D3Dataset(
-            train_file=self.csv_file,
-            max_len=128,
-            sample=1,
-            seed=0,
-            category="games"
-        )
-        self.assertEqual(len(dataset), 1)
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
-    def test_EvalD3Dataset_initialization(self):
-        """Test EvalD3Dataset initialization"""
-        dataset = EvalD3Dataset(
-            train_file=self.csv_file,
-            tokenizer=self.tokenizer,
-            max_len=128,
-            sample=1,
-            seed=0,
-            category="games"
-        )
-        self.assertEqual(len(dataset), 1)
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
-    def test_SidDataset_initialization(self):
-        """Test SidDataset initialization"""
-        dataset = SidDataset(
-            train_file=self.csv_file,
-            max_len=128,
-            sample=1,
-            seed=0,
-            category="games"
-        )
-        self.assertEqual(len(dataset), 1)
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
     def test_SidSFTDataset_initialization(self):
         """Test SidSFTDataset initialization"""
         dataset = SidSFTDataset(
@@ -203,40 +165,6 @@ class TestDataModule(unittest.TestCase):
             category="games"
         )
 
-        self.assertEqual(len(dataset), 1)
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
-    def test_RLTitle2SidDataset_initialization(self):
-        """Test RLTitle2SidDataset initialization"""
-        dataset = RLTitle2SidDataset(
-            item_file=self.item_file,
-            index_file=self.index_file,
-            sample=2,
-            seed=0
-        )
-        self.assertGreaterEqual(len(dataset), 2)  # Should have at least 2 samples
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
-    def test_RLSid2TitleDataset_initialization(self):
-        """Test RLSid2TitleDataset initialization"""
-        dataset = RLSid2TitleDataset(
-            item_file=self.item_file,
-            index_file=self.index_file,
-            sample=2,
-            seed=0
-        )
-        self.assertGreaterEqual(len(dataset), 1)  # Should have at least 1 sample
-        self.assertTrue(hasattr(dataset, 'inputs'))
-
-    def test_RLSidhis2TitleDataset_initialization(self):
-        """Test RLSidhis2TitleDataset initialization"""
-        dataset = RLSidhis2TitleDataset(
-            train_file=self.csv_file,
-            item_file=self.item_file,
-            index_file=self.index_file,
-            sample=1,
-            seed=0
-        )
         self.assertEqual(len(dataset), 1)
         self.assertTrue(hasattr(dataset, 'inputs'))
 

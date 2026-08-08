@@ -4,7 +4,7 @@ import unittest
 import torch
 from torch import nn
 
-from minionerec.collaborative import CausalDINEncoder, CollaborativeCausalLM, DINConfig
+from minionerec.models import CausalDINEncoder, CollaborativeCausalLM, DINConfig
 
 
 class FakeCausalLM(nn.Module):

@@ -17,11 +17,11 @@ CoLLM 原任务是候选商品二分类，推理时已知候选 item，因此可
 ## 3. 实现结构
 
 - `scripts/train_din.py`：在相同训练划分上预训练因果 DIN，目标为下一 item ID，验证指标为 HR@10。
-- `minionerec/collaborative/model.py`：DIN 编码器、MLP projector、占位 embedding 替换、adapter 保存与加载。
-- `minionerec/collaborative/data.py`：文本 prompt 与原始 item ID 历史的双路数据契约，以及专用 collator。
-- `scripts/train_collaborative.py`：第二阶段训练；默认冻结 SFT 后的 Qwen 和 DIN，只训练 projector。
+- `minionerec/models/collaborative.py`：DIN 编码器、MLP projector、占位 embedding 替换、adapter 保存与加载。
+- `minionerec/data/collaborative.py`：文本 prompt 与原始 item ID 历史的双路数据契约，以及专用 collator。
+- `minionerec/training/collaborative.py`：第二阶段训练；默认冻结 SFT 后的 Qwen 和 DIN，只训练 projector。
 - `evaluate.py --collaborative_adapter ...`：在原有约束 beam search 中启用协同 adapter。
-- `minionerec/collaborative/metrics.py`：输出整体及历史长度分桶指标，比较收益来源。
+- `minionerec/evaluation/collaborative_metrics.py`：输出整体及历史长度分桶指标，比较收益来源。
 
 推荐训练顺序：
 
@@ -43,7 +43,7 @@ python evaluate.py \
   --collaborative_adapter ./output/office_collm \
   --test_data_path ./data/Amazon/test/Office_Products_5_2016-10-2018-11.csv
 
-python -m minionerec.collaborative.metrics \
+python -m minionerec.evaluation.collaborative_metrics \
   --result_paths baseline=./result/base.json,collm=./result/collm.json \
   --item_info_file ./data/Amazon/info/Office_Products_5_2016-10-2018-11.txt
 ```

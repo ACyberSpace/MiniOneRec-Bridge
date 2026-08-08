@@ -6,7 +6,6 @@ import json
 import math
 from typing import Dict, Iterable, List, Tuple
 
-import fire
 
 
 BUCKETS: List[Tuple[str, int, int]] = [
@@ -84,4 +83,6 @@ def analyze(result_paths: str, topk: int = 10, item_info_file: str = ""):
 
 
 if __name__ == "__main__":
+    import fire
+
     fire.Fire(analyze)
