@@ -15,17 +15,17 @@ def load_dataset(data_dir: str, dataset_name: str) -> Dict[str, Any]:
     data = {}
     
     # Load item metadata (id -> {title, description, ...})
-    with open(os.path.join(data_dir, f'{dataset_name}.item.json'), 'r') as f:
+    with open(os.path.join(data_dir, dataset_name, "info", f'{dataset_name}.item.json'), 'r') as f:
         data['items'] = json.load(f)
     
     # Load item_id to semantic tokens mapping from index.json
-    with open(os.path.join(data_dir, f'{dataset_name}.index.json'), 'r') as f:
+    with open(os.path.join(data_dir, dataset_name, "info", f'{dataset_name}.index.json'), 'r') as f:
         data['item_to_semantic'] = json.load(f)
     
     # Load train/valid/test splits
     splits = {}
     for split in ['train', 'valid', 'test']:
-        split_file = os.path.join(data_dir, f'{dataset_name}.{split}.inter')
+        split_file = os.path.join(data_dir, dataset_name, split, f'{dataset_name}.{split}.inter')
         if os.path.exists(split_file):
             with open(split_file, 'r') as f:
                 lines = f.readlines()[1:]  # Skip header
@@ -160,13 +160,13 @@ def convert_interactions_to_csv(splits: Dict[str, List], items: Dict[str, Dict],
 
 def main():
     parser = argparse.ArgumentParser(description='Convert dataset (Office_Products/Industrial_and_Scientific) to MiniOneRec format with semantic IDs')
-    parser.add_argument('--data_dir', type=str, 
+    parser.add_argument('--data_dir', type=str, default="./OneRec_data",
                        help='Path to dataset directory')
-    parser.add_argument('--dataset_name', type=str, default='Industrial_and_Scientific',
+    parser.add_argument('--dataset_name', type=str, default='Arts_Crafts_and_Sewing',
                        help='Dataset name (Office_Products, Industrial_and_Scientific)')
-    parser.add_argument('--output_dir', type=str,
+    parser.add_argument('--output_dir', type=str, default="./OneRec_data/Arts_Crafts_and_Sewing",
                        help='Output directory for MiniOneRec format data')
-    parser.add_argument('--category', type=str, default=None,
+    parser.add_argument('--category', type=str, default="Arts",
                        help='Category name for output files (if None, will use dataset_name)')
     parser.add_argument('--max_valid_samples', type=int, default=None,
                        help='Maximum number of samples to keep in validation set (None for all)')
@@ -174,7 +174,7 @@ def main():
                        help='Maximum number of samples to keep in test set (None for all)')
     parser.add_argument('--seed', type=int, default=42,
                        help='Random seed for sampling')
-    parser.add_argument('--keep_longest_only', action='store_true', default=False,
+    parser.add_argument('--keep_longest_only', action='store_true', default=True,
                        help='Keep only longest sequence per user in train data (default: False)')
     
     args = parser.parse_args()

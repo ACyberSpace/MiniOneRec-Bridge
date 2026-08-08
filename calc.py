@@ -9,7 +9,8 @@ import pandas as pd
 import numpy as np
     
 from tqdm import tqdm
-def gao(path, item_path):
+def gao(path="./OneRec_data/result/result.json",
+        item_path="./OneRec_data/Arts_Crafts_and_Sewing/info/Arts_5_2016-10-2018-11.txt"):
     if type(path) != list:
         path = [path]
     if item_path.endswith(".txt"):
@@ -32,7 +33,7 @@ def gao(path, item_path):
     
 
     result_dict = dict()
-    topk_list = [1, 3, 5, 10, 20, 50]
+    topk_list = [1, 3, 5, 10, 20, 50, 100]
     n_beam = -1
     for p in path:
         result_dict[p] = {
@@ -58,7 +59,7 @@ def gao(path, item_path):
                 target_item = test_data[index]['output'].strip(" \n\"")
             minID = 1000000
             for i in range(len(sample)):
-                
+
                 if sample[i] not in item_dict:
                     CC += 1
                     print(sample[i])
@@ -78,7 +79,7 @@ def gao(path, item_path):
         print(valid_topk)
         print(f"NDCG:\t{ALLNDCG / len(text) / (1.0 / math.log(2))}")
         print(f"HR\t{ALLHR / len(text)}")
-        print(CC)
+        print(f"Invalid keys: {CC}")
 
 if __name__=='__main__':
     fire.Fire(gao)

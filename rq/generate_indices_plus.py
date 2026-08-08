@@ -169,7 +169,7 @@ def analyze_duplication(codes_df):
 def parse_args():
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("--data_path", type=str, required=True, help="Path to .npy embeddings")
+    parser.add_argument("--data_path", type=str, required=True, help="../data/Arts_Crafts_and_Sewing/Arts_Crafts_and_Sewing.emb-qwen-td.npy")
     parser.add_argument("--ckpt_path", type=str, required=True, help="Path to trained model checkpoint")
     
     parser.add_argument('--num_emb_list', type=int, nargs='+', default=[256,256,256])

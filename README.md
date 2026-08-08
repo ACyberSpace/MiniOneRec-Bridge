@@ -69,6 +69,9 @@ Scaling Generative Recommendation**
 | `sft.sh`                  | Shell script to start the Supervised Fine-Tuning (SFT) stage                                           |
 | `sft.py`                  | Python implementation of the SFT training loop                                                            |
 | `sft_gpr.py`              | GPR-inspired SFT with Value-Aware Fine-Tuning (VAFT): implements weighted loss based on simulated item value                            |
+| `minionerec/collaborative/` | Causal DIN encoding, collaborative embedding injection, data adapters, and bucketed metrics |
+| `scripts/train_din.py` | Standalone causal DIN pretraining entry point |
+| `scripts/train_collaborative.py` | Stage-2 collaborative alignment entry point |
 | `rl.sh`                   | Shell script to start the Reinforcement Learning (RL) stage                             |
 | `rl.py`                   | Python implementation of the RL training loop                                              |
 | `rl_gpr.py`               | GPR-inspired RL with Hierarchy Enhanced Policy Optimization (HEPO)                                                 |
@@ -99,6 +102,9 @@ Scaling Generative Recommendation**
 | `rq/generate_indices_plus.py`                |   Generates the SID file after training an RQ-Kmeans+ model                                       |
 | `rq/generate_indices_plus.sh`                |   Shell script to generate the SID file after training an RQ-Kmeans+ model                                       |
 | `requirements.txt`        | List of Python dependencies                                                                                |
+
+See `docs/REPOSITORY_STRUCTURE.md` for ownership boundaries and the local
+artifact policy.
 
 ---
 
@@ -261,6 +267,15 @@ bash rl.sh \
      --model_path your_model_path \
      --output_dir output_dir \
 ```
+
+### 5.1 Collaborative Alignment (Optional)
+
+To inject causal user-behavior representations without target-item leakage,
+pretrain the DIN-style encoder with `python -m scripts.train_din`, then align it
+to an existing SFT checkpoint with `python -m scripts.train_collaborative`. Pass the resulting adapter directory to
+`evaluate.py --collaborative_adapter`. See
+`docs/collaborative_optimization_story.md` for the experiment protocol and
+design rationale.
 
 ### 6. Offline Evaluation
 

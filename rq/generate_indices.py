@@ -41,9 +41,9 @@ def get_collision_item(all_indices_str):
 
     return collision_item_groups
 
-dataset = "Industrial_and_Scientific"
-ckpt_path = "xxx/index/output/Industrial_and_Scientific/Sep-20-2025_17-56-15/best_collision_model.pth"
-output_dir = f"../data/{dataset}/"
+dataset = "Arts_Crafts_and_Sewing"
+ckpt_path = "./Encoder/May-17-2026_09-29-33/best_collision_model.pth"
+output_dir = f"../OneRec_data/{dataset}/info/"
 output_file = f"{dataset}.index.json"
 output_file = os.path.join(output_dir,output_file)
 device = torch.device("cuda:0")

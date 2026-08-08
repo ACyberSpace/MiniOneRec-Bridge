@@ -235,8 +235,8 @@ def save_indices_json(codes, path, use_prefix=True):
 def main():
     parser = argparse.ArgumentParser(
         description="FAISS-RQ + Sinkhorn uniform mapping")
-    parser.add_argument("--dataset", default="Industrial_and_Scientific")
-    parser.add_argument("--data_path", type=str, default=None)
+    parser.add_argument("--dataset", default="Arts_Crafts_and_Sewing")
+    parser.add_argument("--data_path", type=str, default="../data/Arts_Crafts_and_Sewing/Arts_Crafts_and_Sewing.emb-qwen-td.npy")
 
     parser.add_argument("--num_levels", type=int, default=3)
     parser.add_argument("--codebook_size", type=int, default=256)

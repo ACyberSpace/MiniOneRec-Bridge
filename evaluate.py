@@ -1,11 +1,17 @@
 
 import pandas as pd
+import ast
 import fire
 import torch
 import json
 import os
 from transformers import GenerationConfig,  AutoTokenizer, BitsAndBytesConfig, AutoModelForCausalLM, LogitsProcessorList, TemperatureLogitsWarper
 from data import  EvalD3Dataset, EvalSidDataset
+from minionerec.collaborative import (
+    COLLAB_TOKEN,
+    CollaborativeEvalSidDataset,
+    load_collaborative_adapter,
+)
 from LogitProcessor import ConstrainedLogitsProcessor
 from accelerate import Accelerator
 import random
@@ -14,7 +20,7 @@ import bitsandbytes as bnb
 
 
 if torch.cuda.is_available():
-    device = "cuda"
+    device = "cuda:0"
 else:
     device = "cpu"
 P = 998244353
@@ -36,27 +42,41 @@ def set_seed(seed):
     # torch.backends.cudnn.benchmark = False
     
 def main(
-    base_model: str = "",
+    base_model: str = "./SFT_Model/final_checkpoint/",
     train_file: str = "",
-    info_file: str = "",
-    category: str = "",
-    test_data_path: str = "",
-    result_json_data: str = "",
-    batch_size: int = 4,
+    info_file: str = "./OneRec_data/Arts_Crafts_and_Sewing/info/Arts_5_2016-10-2018-11.txt",
+    category: str = "Arts",
+    test_data_path: str = "./OneRec_data/Arts_Crafts_and_Sewing/test/Arts_5_2016-10-2018-11.csv",
+    result_json_data: str = "./OneRec_data/result/result.json",
+    batch_size: int = 8,
     K: int = 0,
     seed: int = 42,
     length_penalty: float=0.0,
     max_new_tokens: int = 256,
-    num_beams: int = 50,
+    num_beams: int = 100,
+    collaborative_adapter: str = "",
+    max_history_len: int = 50,
 ):
     random.seed(seed)
     set_seed(seed)
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books"}
+    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products",
+                     "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books",
+                     "Arts": "Arts_Crafts_and_Sewing"}
     category = category_dict[category]
     print(category)
 
-    model = AutoModelForCausalLM.from_pretrained(base_model, torch_dtype=torch.bfloat16, device_map="auto")
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    if collaborative_adapter:
+        tokenizer.add_special_tokens({'additional_special_tokens': [COLLAB_TOKEN]})
+    model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16)
+    if collaborative_adapter:
+        model.resize_token_embeddings(len(tokenizer))
+        model = load_collaborative_adapter(model, collaborative_adapter)
+        expected_id = model.collab_token_id
+        actual_id = tokenizer.convert_tokens_to_ids(COLLAB_TOKEN)
+        if expected_id != actual_id:
+            raise ValueError(f"Collaborative token mismatch: adapter={expected_id}, tokenizer={actual_id}")
     model.eval()
     with open(info_file, 'r') as f:
         info = f.readlines()
@@ -69,8 +89,6 @@ def main(
         info_titles = [f'''### Response:\n{_}''' for _ in item_titles]
 
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    
     # Create prefixID for semantic IDs (existing functionality)
     if base_model.lower().find("llama") > -1:
         prefixID = [tokenizer(_).input_ids[1:] for _ in info_semantic]
@@ -140,11 +158,27 @@ def main(
     tokenizer.padding_side = "left"
     
     # val_dataset = EvalD3Dataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
-    val_dataset = EvalSidDataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
+    if collaborative_adapter:
+        val_dataset = CollaborativeEvalSidDataset(
+            train_file=test_data_path,
+            tokenizer=tokenizer,
+            max_len=2560,
+            category=category,
+            test=True,
+            K=K,
+            seed=seed,
+            max_history_len=max_history_len,
+            padding_idx=model.behavior_encoder.config.padding_idx,
+        )
+    else:
+        val_dataset = EvalSidDataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
         
     encodings = [val_dataset[i] for i in range(len(val_dataset))]
     # encodings = [val_dataset[i] for i in indexes]
     test_data = val_dataset.get_all()
+    source_frame = pd.read_csv(test_data_path, usecols=["history_item_id"])
+    for sample, raw_history in zip(test_data, source_frame["history_item_id"]):
+        sample["history_length"] = len(ast.literal_eval(raw_history))
 
     model.config.pad_token_id = model.config.eos_token_id = tokenizer.eos_token_id
     model.config.bos_token_id = tokenizer.bos_token_id
@@ -160,11 +194,16 @@ def main(
 
         padding_encodings = {"input_ids": []}
         attention_mask = []
+        collaborative_histories = []
+        collaborative_masks = []
 
         for  _ in encodings:
             L = len(_["input_ids"])
             padding_encodings["input_ids"].append([tokenizer.pad_token_id] * (maxLen - L) + _["input_ids"])
             attention_mask.append([0] * (maxLen - L) + [1] * L) 
+            if collaborative_adapter:
+                collaborative_histories.append(_["history_item_ids"])
+                collaborative_masks.append(_["history_mask"])
         
         # print(f"num_beams: {num_beams}")
         generation_config = GenerationConfig(
@@ -188,13 +227,19 @@ def main(
             )
             logits_processor = LogitsProcessorList([clp])
 
-            generation_output = model.generate(
-                torch.tensor(padding_encodings["input_ids"]).to(device),
+            generation_kwargs = dict(
                 attention_mask=torch.tensor(attention_mask).to(device),
                 generation_config=generation_config,
                 return_dict_in_generate=True,
                 output_scores=True,
                 logits_processor=logits_processor,
+            )
+            if collaborative_adapter:
+                generation_kwargs["history_item_ids"] = torch.tensor(collaborative_histories).to(device)
+                generation_kwargs["history_mask"] = torch.tensor(collaborative_masks).to(device)
+            generation_output = model.generate(
+                torch.tensor(padding_encodings["input_ids"]).to(device),
+                **generation_kwargs,
             )
        
         batched_completions = generation_output.sequences[:, maxLen:]

@@ -167,13 +167,13 @@ def analyze_codes(codes, title="", verbose=True):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Constrained RQ-KMeans clustering")
-    parser.add_argument('--root', type=str, default="./data/Amazon", help="Root directory for data")
-    parser.add_argument("--dataset", type=str, required=True, help="Dataset name (e.g., Industrial_and_Scientific)")
+    parser.add_argument('--root', type=str, default="../data/Arts_Crafts_and_Sewing", help="Root directory for data")
+    parser.add_argument("--dataset", type=str, default="Arts_Crafts_and_Sewing", help="Dataset name (e.g., Industrial_and_Scientific)")
     parser.add_argument("--k", type=int, default=256, help="Number of clusters per level")
     parser.add_argument("--l", type=int, default=4, help="Number of levels")
     parser.add_argument("--max_iter", type=int, default=100, help="Maximum number of iterations")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--verbose", action="store_true", help="Print detailed information")
+    parser.add_argument("--verbose", type=bool, default=True, help="Print detailed information")
     return parser.parse_args()
 
 

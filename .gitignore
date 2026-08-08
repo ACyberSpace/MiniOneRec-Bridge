@@ -1,0 +1,41 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# IDE and OS metadata
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Experiment tracking and logs
+wandb/
+logs/
+*.log
+
+# Local datasets and generated artifacts
+/data/*/
+/OneRec_data/
+/SFT_Model/
+/output/
+/outputs/
+/checkpoints/
+/results/
+/result_temp/
+
+# Downloaded model directories and weight files
+/rq/Qwen*/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+
+# Generated arrays are reproducible artifacts, not source code
+*.npy
+*.npz

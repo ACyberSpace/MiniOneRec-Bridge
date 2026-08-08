@@ -89,34 +89,36 @@ def get_cosine_schedule_with_warmup(
 
 def train(
     # model/data params
-    base_model: str = "",  # the only required argument
-    train_file: str="",
-    eval_file: str="",
-    output_dir: str = "",
+    base_model: str = "./rq/Qwen2.5-0.5B-Instruct/",  # the only required argument
+    train_file: str="./OneRec_data/Arts_Crafts_and_Sewing/train/Arts_5_2016-10-2018-11.csv",
+    eval_file: str="./OneRec_data/Arts_Crafts_and_Sewing/valid/Arts_5_2016-10-2018-11.csv",
+    output_dir: str = "./SFT_Model",
     sample: int = -1,
     seed: int = 42,
     
     # training hyperparams
-    batch_size: int = 128,
-    micro_batch_size: int = 4,
+    batch_size: int = 256,
+    micro_batch_size: int = 8,
     num_epochs: int = 10,
     learning_rate: float = 3e-4,
     cutoff_len: int = 512,
     # llm hyperparams
     group_by_length: bool = False,  # faster, but produces an odd training loss curve
-    freeze_LLM: bool = False,  # freeze LLM parameters, only train new token embeddings
+    freeze_LLM: bool = True,  # freeze LLM parameters, only train new token embeddings
     # wandb params
     wandb_project: str = "",
     wandb_run_name: str = "",
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
-    category: str="",
+    category: str="Arts",
     train_from_scratch: bool = False,
-    sid_index_path: str = "",
-    item_meta_path: str = "",
+    sid_index_path: str = "./OneRec_data/Arts_Crafts_and_Sewing/info/Arts_Crafts_and_Sewing.index.json",
+    item_meta_path: str = "./OneRec_data/Arts_Crafts_and_Sewing/info/Arts_Crafts_and_Sewing.item.json",
 ):
     set_seed(seed)
     os.environ['WANDB_PROJECT'] = wandb_project
-    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products", "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books"}
+    category_dict = {"Industrial_and_Scientific": "industrial and scientific items", "Office_Products": "office products",
+                     "Toys_and_Games": "toys and games", "Sports": "sports and outdoors", "Books": "books",
+                     "Arts": "Arts_Crafts_and_Sewing"}
     print(category)
     category = category_dict[category]
     assert (
@@ -145,6 +147,7 @@ def train(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
+    original_vocab_size = tokenizer.vocab_size
     
     if sid_index_path and os.path.exists(sid_index_path):
         print(f"Loading index from {sid_index_path}")
@@ -191,11 +194,11 @@ def train(
     train_datasets = []
     # train_data1 = SFTData(train_file=train_file, tokenizer=tokenizer, max_len=cutoff_len,  sample=sample, seed=seed, category=category)
     train_data1 = SidSFTDataset(train_file=train_file, tokenizer=tokenizer, max_len=cutoff_len,  sample=sample, seed=seed, category=category)
-    train_datasets.append(train_data1)
+    train_datasets.append(train_data1)  # Task: sid_seq2sid
     train_data2 = SidItemFeatDataset(item_file=item_meta_path, index_file=sid_index_path, tokenizer=tokenizer, max_len=cutoff_len,  sample=sample, seed=seed, category=category)
-    train_datasets.append(train_data2)
+    train_datasets.append(train_data2)  # Task: sid2title and title2sid
     train_data3 = FusionSeqRecDataset(train_file=train_file, item_file=item_meta_path, index_file=sid_index_path, tokenizer=tokenizer, max_len=cutoff_len, sample=sample, seed=seed, category=category)
-    train_datasets.append(train_data3)
+    train_datasets.append(train_data3)  # Task: title_seq2(title or description)
     # train_data4 = SFTData(train_file=train_file, tokenizer=tokenizer, max_len=cutoff_len,  sample=sample, seed=seed, category=category)
     # train_datasets.append(train_data4)
     # train_data5 = TitleHistory2SidSFTDataset(train_file=train_file, item_file=item_meta_path, index_file=sid_index_path, tokenizer=tokenizer, max_len=cutoff_len, sample=sample, seed=seed, category=category)
@@ -213,7 +216,7 @@ def train(
     if not ddp and torch.cuda.device_count() > 1:
         model.is_parallelizable = True
         model.model_parallel = True
-    
+    #  处理成模型能够读取的数据形式
     sample_frac = 1
     hf_train_dataset = HFDataset.from_dict({k: [v[k] for v in train_data] for k in train_data[0].keys()})
     hf_train_dataset = hf_train_dataset.shuffle(seed=42).select(range(int(sample_frac * len(hf_train_dataset))))

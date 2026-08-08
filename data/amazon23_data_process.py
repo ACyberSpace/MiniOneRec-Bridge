@@ -108,7 +108,7 @@ def load_metadata_amazon23(metadata_file):
                 m = json.loads(line.strip())
 
                 # Amazon 23 metadata may not have "asin", only "parent_asin"
-                asin = m.get("parent_asin", None)
+                asin = m.get("parent_asin", None)  # 物品唯一标签
 
                 if asin is None:
                     # skip items with no valid id
@@ -501,13 +501,13 @@ def parse_args():
     parser.add_argument("--ed_year", type=int, default=2025)
     parser.add_argument("--ed_month", type=int, default=1)
 
-    parser.add_argument("--metadata_file", type=str, required=True,
+    parser.add_argument("--metadata_file", type=str, default="./All_Beauty/meta_All_Beauty.json",
                         help="Path to meta_...jsonl file")
 
-    parser.add_argument("--reviews_file", type=str, required=True,
+    parser.add_argument("--reviews_file", type=str, default="./All_Beauty/All_Beauty.json",
                         help="Path to ...jsonl review file")
 
-    parser.add_argument("--output_path", type=str, default="./data",
+    parser.add_argument("--output_path", type=str, default="./All_Beauty/",
                         help="Output folder")
 
     return parser.parse_args()

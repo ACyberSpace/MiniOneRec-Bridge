@@ -15,4 +15,5 @@ def merge(input_path, output_path, cuda_list):
         json.dump(data, f, indent=4)
 
 if __name__ == '__main__':
+
     fire.Fire(merge)

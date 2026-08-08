@@ -278,7 +278,7 @@ preference_prompt_2 = "A user has purchased a chronological list of {dataset_ful
 amazon18_dataset_list = [
     'Appliances', 'Beauty',
     'Fashion', 'Software', 'Luxury', 'Scientific',  'Pantry',
-    'Instruments', 'Arts', 'Games', 'Office', 'Garden',
+    'Instruments', 'Arts_Crafts_and_Sewing', 'Games', 'Office', 'Garden',
     'Food', 'Cell', 'CDs', 'Automotive', 'Toys',
     'Pet', 'Tools', 'Kindle', 'Sports', 'Movies',
     'Electronics', 'Home', 'Clothing', 'Books'
@@ -288,7 +288,7 @@ amazon18_dataset2fullname = {
     'Beauty': 'All_Beauty',
     'Fashion': 'AMAZON_FASHION',
     'Appliances': 'Appliances',
-    'Arts': 'Arts_Crafts_and_Sewing',
+    'Arts_Crafts_and_Sewing': 'Arts_Crafts_and_Sewing',
     'Automotive': 'Automotive',
     'Books': 'Books',
     'CDs': 'CDs_and_Vinyl',

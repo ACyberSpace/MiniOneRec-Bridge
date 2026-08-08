@@ -47,7 +47,7 @@ def write_remap_index(index_map, file_path):
 
 # Dataset name mapping
 amazon18_dataset2fullname = {
-    'Arts': 'Arts_Crafts_and_Sewing',
+    'Arts_Crafts_and_Sewing': 'Arts_Crafts_and_Sewing',
     'Games': 'Video_Games',
     'Sports': 'Sports_and_Outdoors',
     'Instruments': 'Musical_Instruments',
@@ -533,7 +533,7 @@ def process_dataset_recursive(args, metadata, reviews, start_timestamp, end_time
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='Arts', help='Instruments / Arts / Games / Sports')
+    parser.add_argument('--dataset', type=str, default='Arts_Crafts_and_Sewing', help='Instruments / Arts_Crafts_and_Sewing / Games / Sports')
     parser.add_argument('--user_k', type=int, default=5, help='user k-core filtering')
     parser.add_argument('--item_k', type=int, default=5, help='item k-core filtering')
     parser.add_argument('--st_year', type=int, default=1996, help='start year')
