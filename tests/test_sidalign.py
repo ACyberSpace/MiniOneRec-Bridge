@@ -13,16 +13,16 @@ from minionerec.indexing import (
     evaluate_tokenizer,
     train_sasrec_embeddings,
 )
-from rq.generate_letter_indices import generate
-from rq.letter_trainer import balanced_codebook_clusters, train_letter_tokenizer
-from rq.models import LetterRQVAE
+from rq.generate_sidalign_indices import generate
+from rq.sidalign_trainer import balanced_codebook_clusters, train_sidalign_tokenizer
+from rq.models import SIDAlignRQVAE
 
 
-class LetterTokenizerTest(unittest.TestCase):
+class SIDAlignTokenizerTest(unittest.TestCase):
     def test_collaborative_loss_rewards_aligned_pairs(self):
         quantized = torch.eye(4) * 4
-        aligned = LetterRQVAE.collaborative_loss(quantized, torch.eye(4))
-        shuffled = LetterRQVAE.collaborative_loss(
+        aligned = SIDAlignRQVAE.collaborative_loss(quantized, torch.eye(4))
+        shuffled = SIDAlignRQVAE.collaborative_loss(
             quantized, torch.eye(4).roll(1, dims=0)
         )
         self.assertLess(aligned.item(), shuffled.item())
@@ -33,9 +33,9 @@ class LetterTokenizerTest(unittest.TestCase):
         counts = torch.bincount(labels, minlength=4)
         self.assertLessEqual(int(counts.max() - counts.min()), 1)
 
-    def test_all_letter_losses_backpropagate(self):
+    def test_all_sidalign_losses_backpropagate(self):
         torch.manual_seed(0)
-        model = LetterRQVAE(
+        model = SIDAlignRQVAE(
             in_dim=6,
             num_emb_list=[4, 4],
             e_dim=4,
@@ -44,7 +44,7 @@ class LetterTokenizerTest(unittest.TestCase):
             sk_epsilons=[0.0, 0.0],
         )
         labels = [torch.tensor([0, 0, 1, 1]), torch.tensor([0, 0, 1, 1])]
-        output = model.forward_letter(
+        output = model.forward_sidalign(
             torch.randn(4, 6),
             torch.randn(4, 4),
             labels,
@@ -76,7 +76,7 @@ class LetterTokenizerTest(unittest.TestCase):
             with open(item_path, "w", encoding="utf-8") as stream:
                 json.dump({str(index): {"title": str(index)} for index in range(8)}, stream)
 
-            result = train_letter_tokenizer(
+            result = train_sidalign_tokenizer(
                 content_path=content_path,
                 cf_path=cf_path,
                 output_dir=output_dir,

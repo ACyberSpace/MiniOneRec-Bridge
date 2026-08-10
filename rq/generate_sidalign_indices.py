@@ -1,4 +1,4 @@
-"""Generate MiniOneRec-compatible item indices from a LETTER checkpoint."""
+"""Generate MiniOneRec-compatible item indices from a SIDAlign checkpoint."""
 
 from __future__ import annotations
 

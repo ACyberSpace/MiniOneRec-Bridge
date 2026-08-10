@@ -1,4 +1,4 @@
-"""LETTER tokenizer on top of MiniOneRec's RQ-VAE implementation."""
+"""Collaborative-aware SID tokenizer built on MiniOneRec's RQ-VAE."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from torch.nn import functional as F
 from .rqvae import RQVAE
 
 
-class LetterRQVAE(RQVAE):
-    """RQ-VAE with LETTER collaborative and diversity regularization."""
+class SIDAlignRQVAE(RQVAE):
+    """RQ-VAE with collaborative alignment and code diversity regularization."""
 
-    def forward_letter(
+    def forward_sidalign(
         self,
         content_embeddings: torch.Tensor,
         cf_embeddings: torch.Tensor,
@@ -54,7 +54,7 @@ class LetterRQVAE(RQVAE):
     ) -> torch.Tensor:
         if quantized_embeddings.shape != cf_embeddings.shape:
             raise ValueError(
-                "LETTER requires CF embedding dimension to equal the RQ-VAE latent dimension"
+                "SIDAlign requires CF embedding dimension to equal the RQ-VAE latent dimension"
             )
         labels = torch.arange(quantized_embeddings.size(0), device=quantized_embeddings.device)
         similarities = quantized_embeddings @ cf_embeddings.T

@@ -9,7 +9,7 @@ MiniOneRec-SIDAlign/
 |   |-- data/
 |   |   `-- datasets.py              # SFT and evaluation datasets
 |   |-- indexing/
-|   |   |-- sasrec.py                # Frozen item CF embeddings for LETTER
+|   |   |-- sasrec.py                # Frozen item CF embeddings for SIDAlign
 |   |   `-- diagnostics.py           # SID code usage and CF-prefix analysis
 |   |-- training/
 |   |   `-- sft.py                   # Multi-task SID supervised tuning
@@ -20,10 +20,10 @@ MiniOneRec-SIDAlign/
 |-- rq/
 |   |-- models/
 |   |   |-- rqvae.py                 # Content RQ-VAE baseline
-|   |   `-- letter_rqvae.py          # CF and diversity regularization
-|   |-- letter_trainer.py            # Constrained code clustering and training
-|   |-- train_letter.py              # Tokenizer CLI
-|   `-- generate_letter_indices.py   # MiniOneRec index export
+|   |   `-- sidalign_rqvae.py        # CF and diversity regularization
+|   |-- sidalign_trainer.py          # Constrained code clustering and training
+|   |-- train_sidalign.py            # Tokenizer CLI
+|   `-- generate_sidalign_indices.py # MiniOneRec index export
 |-- scripts/train_sasrec.py          # CF embedding CLI
 |-- tests/                           # Focused regression tests
 `-- docs/                            # Design and interview narrative
@@ -35,7 +35,7 @@ MiniOneRec-SIDAlign/
 data preparation
   -> content embedding extraction
   -> SASRec item embedding pretraining
-  -> LETTER Semantic ID construction
+  -> SIDAlign Semantic ID construction
   -> unchanged MiniOneRec SFT
   -> constrained SID generation
   -> ranking evaluation

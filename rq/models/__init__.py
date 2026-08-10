@@ -1,6 +1,6 @@
 """RQ-VAE model components."""
 
-from .letter_rqvae import LetterRQVAE
+from .sidalign_rqvae import SIDAlignRQVAE
 from .rqvae import RQVAE
 
-__all__ = ["LetterRQVAE", "RQVAE"]
+__all__ = ["RQVAE", "SIDAlignRQVAE"]

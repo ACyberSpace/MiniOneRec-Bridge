@@ -1,4 +1,4 @@
-"""Training utilities for the LETTER item tokenizer."""
+"""Training utilities for the SIDAlign item tokenizer."""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.cluster import KMeans
 from torch.utils.data import DataLoader, Dataset
 
-from .models.letter_rqvae import LetterRQVAE
+from .models.sidalign_rqvae import SIDAlignRQVAE
 
 
-class LetterEmbeddingDataset(Dataset):
+class SIDAlignEmbeddingDataset(Dataset):
     def __init__(self, content_path: str, cf_path: str) -> None:
         self.content = _load_array(content_path)
         self.cf = _load_array(cf_path)
@@ -67,8 +67,8 @@ def balanced_codebook_clusters(
 ) -> torch.Tensor:
     """Cluster code embeddings with equal-size assignment constraints.
 
-    LETTER uses constrained K-means before its diversity loss. This implementation
-    alternates centroid updates with an exact capacity-constrained assignment.
+    The diversity objective uses constrained K-means over code embeddings. This
+    implementation alternates centroid updates with an exact capacity assignment.
     """
     values = codebook.detach().float().cpu().numpy()
     num_codes = len(values)
@@ -99,16 +99,16 @@ def balanced_codebook_clusters(
 
 
 @dataclass
-class LetterTrainResult:
+class SIDAlignTrainResult:
     checkpoint_path: str
     best_collision_rate: float
     best_loss: float
 
 
-class LetterTrainer:
+class SIDAlignTrainer:
     def __init__(
         self,
-        model: LetterRQVAE,
+        model: SIDAlignRQVAE,
         device: torch.device,
         learning_rate: float,
         weight_decay: float,
@@ -138,7 +138,7 @@ class LetterTrainer:
         for quantizer in self.model.rq.vq_layers:
             if residual.size(0) < quantizer.n_e:
                 raise ValueError(
-                    "LETTER codebook initialization needs at least as many items as codes"
+                    "SIDAlign codebook initialization needs at least as many items as codes"
                 )
             quantizer.init_emb(residual)
             quantized, _, _ = quantizer(residual, use_sk=False)
@@ -160,7 +160,7 @@ class LetterTrainer:
         totals: Dict[str, float] = {}
         for content, cf in loader:
             content, cf = content.to(self.device), cf.to(self.device)
-            output = self.model.forward_letter(
+            output = self.model.forward_sidalign(
                 content,
                 cf,
                 cluster_labels,
@@ -193,7 +193,7 @@ class LetterTrainer:
         return (total - len(unique)) / max(total, 1)
 
 
-def train_letter_tokenizer(
+def train_sidalign_tokenizer(
     content_path: str,
     cf_path: str,
     output_dir: str,
@@ -215,8 +215,8 @@ def train_letter_tokenizer(
     kmeans_iters: int = 100,
     seed: int = 42,
     device: str = "",
-) -> LetterTrainResult:
-    """Train the LETTER tokenizer while leaving downstream MiniOneRec unchanged."""
+) -> SIDAlignTrainResult:
+    """Train SIDAlign while leaving downstream MiniOneRec unchanged."""
     import argparse
     import json
 
@@ -224,7 +224,7 @@ def train_letter_tokenizer(
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-    dataset = LetterEmbeddingDataset(content_path, cf_path)
+    dataset = SIDAlignEmbeddingDataset(content_path, cf_path)
     if dataset.cf_dim != latent_dim:
         raise ValueError(
             f"CF embedding dimension ({dataset.cf_dim}) must equal latent_dim ({latent_dim})"
@@ -233,7 +233,7 @@ def train_letter_tokenizer(
     sk_epsilons = list(map(float, sk_epsilons))
     if len(num_emb_list) != len(sk_epsilons):
         raise ValueError("num_emb_list and sk_epsilons must have equal lengths")
-    model = LetterRQVAE(
+    model = SIDAlignRQVAE(
         in_dim=dataset.content_dim,
         num_emb_list=num_emb_list,
         e_dim=latent_dim,
@@ -258,7 +258,7 @@ def train_letter_tokenizer(
         num_workers=num_workers,
         pin_memory=selected_device.type == "cuda",
     )
-    trainer = LetterTrainer(
+    trainer = SIDAlignTrainer(
         model,
         selected_device,
         learning_rate,
@@ -292,7 +292,7 @@ def train_letter_tokenizer(
     best_loss = float("inf")
     best_collision = float("inf")
     best_saved_loss = float("inf")
-    checkpoint_path = os.path.join(output_dir, "best_letter_model.pth")
+    checkpoint_path = os.path.join(output_dir, "best_sidalign_model.pth")
 
     trainer.initialize_codebooks(loader)
     for epoch in range(epochs):
@@ -320,4 +320,4 @@ def train_letter_tokenizer(
                     },
                     checkpoint_path,
                 )
-    return LetterTrainResult(checkpoint_path, best_collision, best_loss)
+    return SIDAlignTrainResult(checkpoint_path, best_collision, best_loss)

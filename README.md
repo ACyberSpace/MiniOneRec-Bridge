@@ -4,9 +4,8 @@
 
 MiniOneRec-SIDAlign is a research extension of
 [MiniOneRec](https://github.com/AkaliKong/MiniOneRec). It replaces the
-content-only item tokenizer with the tokenizer proposed by
-[LETTER](https://arxiv.org/abs/2405.07314), while keeping MiniOneRec's SFT,
-constrained generation, and ranking evaluation unchanged.
+content-only item tokenizer with a collaborative-aware tokenizer, while keeping
+MiniOneRec's SFT, constrained generation, and ranking evaluation unchanged.
 
 The project intentionally excludes reinforcement learning and runtime
 collaborative adapters. Collaborative signals enter only during Semantic ID
@@ -21,7 +20,7 @@ item title + description -> content embedding -> RQ-VAE -> quantized embedding -
 train interactions -> SASRec -> frozen item CF embedding ------------+
 ```
 
-The tokenizer optimizes the three LETTER objectives:
+The tokenizer jointly optimizes three objectives:
 
 ```text
 L = L_semantic + alpha * L_collaborative + beta * L_diversity
@@ -33,8 +32,8 @@ L = L_semantic + alpha * L_collaborative + beta * L_diversity
 - `L_diversity`: constrained-cluster regularization over every codebook to
   reduce biased code assignment.
 
-LETTER's ranking-guided generation loss is not included. MiniOneRec SFT is held
-fixed so that changes can be attributed to item tokenization.
+MiniOneRec SFT is held fixed so that changes can be attributed to item
+tokenization rather than downstream training changes.
 
 ## Layout
 
@@ -45,9 +44,9 @@ minionerec/
 |-- training/      # Original supervised MiniOneRec training
 `-- evaluation/    # Constrained generation and ranking metrics
 rq/
-|-- models/        # RQ-VAE and LETTER loss implementation
-|-- train_letter.py
-`-- generate_letter_indices.py
+|-- models/        # RQ-VAE and SIDAlign objective implementation
+|-- train_sidalign.py
+`-- generate_sidalign_indices.py
 scripts/           # Stable command wrappers
 tests/             # Tokenizer and data regression tests
 docs/              # Architecture and experiment narrative
@@ -59,8 +58,8 @@ remain compatibility wrappers for the original commands.
 ## Installation
 
 ```bash
-conda create -n minionerec-bridge python=3.11 -y
-conda activate minionerec-bridge
+conda create -n minionerec-sidalign python=3.11 -y
+conda activate minionerec-sidalign
 pip install -r requirements.txt
 ```
 
@@ -109,23 +108,23 @@ python -m scripts.train_sasrec \
 The exporter sorts item keys numerically, matching the content-embedding order.
 It also writes an item-order manifest beside the `.npy` file.
 
-### 4. Train the LETTER tokenizer
+### 4. Train the SIDAlign tokenizer
 
-The defaults reproduce LETTER's tokenizer setup: four 256-entry codebooks,
-32-dimensional quantized/CF embeddings, `alpha=0.01`, and `beta=0.0001`.
+The defaults use four 256-entry codebooks, 32-dimensional quantized/CF
+embeddings, `alpha=0.01`, and `beta=0.0001`.
 
 ```bash
-python -m rq.train_letter \
+python -m rq.train_sidalign \
   --content_path ./OneRec_data/Office_Products/Office_Products.content.npy \
   --cf_path ./OneRec_data/Office_Products/Office_Products.cf-sasrec-32.npy \
-  --output_dir ./outputs/office/letter-tokenizer
+  --output_dir ./outputs/office/sidalign-tokenizer
 ```
 
 ### 5. Generate MiniOneRec-compatible SIDs
 
 ```bash
-python -m rq.generate_letter_indices \
-  --checkpoint_path ./outputs/office/letter-tokenizer/best_letter_model.pth \
+python -m rq.generate_sidalign_indices \
+  --checkpoint_path ./outputs/office/sidalign-tokenizer/best_sidalign_model.pth \
   --item_file ./OneRec_data/Office_Products/Office_Products.item.json \
   --output_path ./OneRec_data/Office_Products/Office_Products.index.json
 ```
@@ -158,9 +157,9 @@ Use identical data splits, content embeddings, codebook sizes, SFT settings,
 beam sizes, and seeds for:
 
 1. `Content SID`: original RQ-VAE objective.
-2. `LETTER-CF`: semantic plus collaborative regularization.
-3. `LETTER-Full`: semantic, collaborative, and diversity regularization.
-4. `Shuffled-CF`: item CF embeddings shuffled before LETTER training.
+2. `SIDAlign-CF`: semantic plus collaborative regularization.
+3. `SIDAlign-Full`: semantic, collaborative, and diversity regularization.
+4. `Shuffled-CF`: item CF embeddings shuffled before SIDAlign training.
 
 Report Recall/NDCG and tokenizer diagnostics: SID collision rate, per-level
 code usage, code entropy, and the shared-prefix rate of nearest CF neighbors.
@@ -172,8 +171,9 @@ Do not claim gains until this controlled experiment has been run.
 python -m unittest discover -s tests -v
 ```
 
-## Upstream and License
+## References and License
 
-This repository retains MiniOneRec's Apache-2.0 license. The collaborative
-tokenizer is an adaptation of LETTER's published method; the paper and official
-implementation are linked above and should be cited in derived research.
+This repository retains MiniOneRec's Apache-2.0 license. The design is informed
+by collaborative-aware tokenization research, including
+[LETTER](https://arxiv.org/abs/2405.07314); cite the relevant sources in
+derived research.

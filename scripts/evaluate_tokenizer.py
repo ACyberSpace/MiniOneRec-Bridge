@@ -1,4 +1,4 @@
-"""CLI wrapper for LETTER Semantic-ID structural diagnostics."""
+"""CLI wrapper for SIDAlign Semantic-ID structural diagnostics."""
 
 import fire
 

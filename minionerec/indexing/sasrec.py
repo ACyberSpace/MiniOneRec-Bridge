@@ -1,4 +1,4 @@
-"""Small SASRec trainer used to produce frozen item CF embeddings for LETTER."""
+"""Small SASRec trainer used to produce frozen item CF embeddings for SIDAlign."""
 
 from __future__ import annotations
 

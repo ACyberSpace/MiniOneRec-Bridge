@@ -1,4 +1,4 @@
-"""CLI wrapper for the SASRec item-embedding stage used by LETTER."""
+"""CLI wrapper for the SASRec item-embedding stage used by SIDAlign."""
 
 import fire
 

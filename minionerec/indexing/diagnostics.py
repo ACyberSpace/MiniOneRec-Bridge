@@ -1,4 +1,4 @@
-"""Structural diagnostics for content-only and LETTER Semantic IDs."""
+"""Structural diagnostics for content-only and SIDAlign Semantic IDs."""
 
 from __future__ import annotations
 
