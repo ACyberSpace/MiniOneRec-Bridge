@@ -1,10 +1,10 @@
 # Repository Structure
 
-MiniOneRec-Bridge changes item tokenization and keeps downstream MiniOneRec
+MiniOneRec-SIDAlign changes item tokenization and keeps downstream MiniOneRec
 supervised training intact.
 
 ```text
-MiniOneRec-Bridge/
+MiniOneRec-SIDAlign/
 |-- minionerec/
 |   |-- data/
 |   |   `-- datasets.py              # SFT and evaluation datasets

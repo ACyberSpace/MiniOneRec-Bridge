@@ -1,8 +1,8 @@
-# MiniOneRec-Bridge
+# MiniOneRec-SIDAlign
 
 **Collaborative Semantic IDs for supervised generative recommendation.**
 
-MiniOneRec-Bridge is a research extension of
+MiniOneRec-SIDAlign is a research extension of
 [MiniOneRec](https://github.com/AkaliKong/MiniOneRec). It replaces the
 content-only item tokenizer with the tokenizer proposed by
 [LETTER](https://arxiv.org/abs/2405.07314), while keeping MiniOneRec's SFT,
