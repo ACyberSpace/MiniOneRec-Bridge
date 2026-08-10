@@ -10,24 +10,41 @@ import os
 from typing import Dict, List, Any
 import argparse
 
+
+def _first_existing(paths: List[str]) -> str:
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    raise FileNotFoundError(f"none of the expected dataset files exist: {paths}")
+
 def load_dataset(data_dir: str, dataset_name: str) -> Dict[str, Any]:
-    """Load all dataset files"""
+    """Load either the flat preprocessing layout or the organized layout."""
     data = {}
-    
-    # Load item metadata (id -> {title, description, ...})
-    with open(os.path.join(data_dir, dataset_name, "info", f'{dataset_name}.item.json'), 'r') as f:
+    nested = os.path.join(data_dir, dataset_name)
+    base = nested if os.path.isdir(nested) else data_dir
+
+    item_path = _first_existing([
+        os.path.join(base, "info", f'{dataset_name}.item.json'),
+        os.path.join(base, f'{dataset_name}.item.json'),
+    ])
+    index_path = _first_existing([
+        os.path.join(base, "info", f'{dataset_name}.index.json'),
+        os.path.join(base, f'{dataset_name}.index.json'),
+    ])
+    with open(item_path, 'r', encoding='utf-8') as f:
         data['items'] = json.load(f)
-    
-    # Load item_id to semantic tokens mapping from index.json
-    with open(os.path.join(data_dir, dataset_name, "info", f'{dataset_name}.index.json'), 'r') as f:
+    with open(index_path, 'r', encoding='utf-8') as f:
         data['item_to_semantic'] = json.load(f)
-    
-    # Load train/valid/test splits
+
     splits = {}
     for split in ['train', 'valid', 'test']:
-        split_file = os.path.join(data_dir, dataset_name, split, f'{dataset_name}.{split}.inter')
-        if os.path.exists(split_file):
-            with open(split_file, 'r') as f:
+        split_candidates = [
+            os.path.join(base, split, f'{dataset_name}.{split}.inter'),
+            os.path.join(base, f'{dataset_name}.{split}.inter'),
+        ]
+        split_file = next((path for path in split_candidates if os.path.exists(path)), None)
+        if split_file:
+            with open(split_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()[1:]  # Skip header
                 splits[split] = [line.strip().split('\t') for line in lines if line.strip()]
     

@@ -1,1 +1,1 @@
-"""SFT, DIN pretraining, and collaborative alignment implementations."""
+"""MiniOneRec supervised fine-tuning implementation."""

@@ -1,10 +1,4 @@
-"""Datasets used by the SFT, collaborative alignment, and evaluation stages."""
-
-from .collaborative import (
-    CollaborativeDataCollator,
-    CollaborativeEvalSidDataset,
-    CollaborativeSidSFTDataset,
-)
+"""Datasets used by the SFT and evaluation stages."""
 from .datasets import (
     BaseDataset,
     CSVBaseDataset,
@@ -22,9 +16,6 @@ from .datasets import (
 __all__ = [
     "BaseDataset",
     "CSVBaseDataset",
-    "CollaborativeDataCollator",
-    "CollaborativeEvalSidDataset",
-    "CollaborativeSidSFTDataset",
     "EvalSidDataset",
     "FusionSeqRecDataset",
     "JSONBaseDataset",

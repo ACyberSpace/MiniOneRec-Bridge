@@ -14,7 +14,14 @@ from accelerate.utils import gather_object
 def load_data(args):
     if args.root:
         print("args.root: ", args.root)
-    item2feature_path = os.path.join(args.root, args.dataset,f'{args.dataset}.item.json')
+    dataset_dir = os.path.join(args.root, args.dataset)
+    candidates = [
+        os.path.join(dataset_dir, f'{args.dataset}.item.json'),
+        os.path.join(dataset_dir, 'info', f'{args.dataset}.item.json'),
+    ]
+    item2feature_path = next((path for path in candidates if os.path.exists(path)), None)
+    if item2feature_path is None:
+        raise FileNotFoundError(f"item metadata not found; checked: {candidates}")
     item2feature = load_json(item2feature_path)
     return item2feature
 
@@ -142,8 +149,10 @@ def generate_item_embedding(args, item_text_list, tokenizer, model, accelerator,
         
         print('Final Embeddings shape: ', final_embeddings.shape)
         
-        # file_path = os.path.join(args.root, args.dataset,f"{args.dataset}.emb-{args.plm_name}-td.npy")
-        file_path = os.path.join("../../OneRec_data/Arts_Crafts_and_Sewing/info", f"{args.dataset}.emb-{args.plm_name}-td.npy")
+        file_path = args.output_path or os.path.join(
+            args.root, args.dataset, f"{args.dataset}.emb-{args.plm_name}-td.npy"
+        )
+        os.makedirs(os.path.dirname(os.path.abspath(file_path)), exist_ok=True)
         np.save(file_path, final_embeddings)
         print(f"Saved to {file_path}")
 
@@ -167,6 +176,7 @@ def parse_args():
     parser.add_argument('--plm_checkpoint', type=str, default='../Qwen2.5-3B-Instruct/', help='Qwen model path')
     parser.add_argument('--max_sent_len', type=int, default=2048)
     parser.add_argument('--word_drop_ratio', type=float, default=-1, help='word drop ratio')
+    parser.add_argument('--output_path', type=str, default='', help='optional .npy output path')
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -176,7 +186,6 @@ if __name__ == '__main__':
     
     if accelerator.is_main_process:
         print(f"Running with {accelerator.num_processes} processes.")
-    os.path.exists(os.path.join(args.root, f'{args.dataset}.item.json'))
     item_text_list = preprocess_text(args)
 
     plm_tokenizer, plm_model = load_qwen_model(args.plm_checkpoint)

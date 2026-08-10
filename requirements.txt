@@ -111,6 +111,7 @@ requests==2.32.3
 safetensors==0.6.2
 scikit-build==0.18.0
 scipy==1.14.0
+scikit-learn==1.5.2
 sentry-sdk==2.42.0
 setuptools-git-versioning==2.0.0
 six==1.16.0

@@ -1,79 +1,60 @@
 # MiniOneRec-Bridge
 
-**Semantic ID and behavioral-signal fusion for generative recommendation.**
+**Collaborative Semantic IDs for supervised generative recommendation.**
 
-MiniOneRec-Bridge is a research extension built on
-[MiniOneRec](https://github.com/AkaliKong/MiniOneRec). It keeps MiniOneRec's
-Semantic ID construction and supervised generative recommendation pipeline,
-then adds a causal behavior encoder that injects collaborative user signals
-into the language-model embedding space.
+MiniOneRec-Bridge is a research extension of
+[MiniOneRec](https://github.com/AkaliKong/MiniOneRec). It replaces the
+content-only item tokenizer with the tokenizer proposed by
+[LETTER](https://arxiv.org/abs/2405.07314), while keeping MiniOneRec's SFT,
+constrained generation, and ranking evaluation unchanged.
 
-This repository uses a supervised-only training path. The complete path is
-data preparation, SID construction, SFT, behavioral encoder
-pretraining, collaborative alignment, constrained generation, and offline
-evaluation.
+The project intentionally excludes reinforcement learning and runtime
+collaborative adapters. Collaborative signals enter only during Semantic ID
+construction, so the downstream comparison remains controlled.
 
-## What Changed
-
-| Area | MiniOneRec baseline | MiniOneRec-Bridge |
-|---|---|---|
-| Item representation | Text-derived Semantic IDs | Same SID pipeline |
-| User representation | SID sequence in the prompt | SID sequence plus causal behavior embedding |
-| Behavioral query | Not applicable | Last observed item, never the prediction target |
-| Cross-space fusion | Not applicable | MLP projector into the LLM token space |
-| Training | Multi-stage generative tuning | SFT followed by isolated collaborative alignment |
-| Evaluation | Overall HR/NDCG | Overall and history-length bucket metrics |
-
-The key adaptation is causal availability. Candidate-aware DIN normally uses a
-target item as its attention query, but the next target is unknown during
-open-ended SID generation. MiniOneRec-Bridge therefore queries the behavior
-history with the last observed item, preventing target leakage between offline
-training and online inference.
-
-## Pipeline
+## Method
 
 ```text
-Amazon interactions and item text
-        |
-        v
-Text embedding -> RQ-VAE / RQ-Kmeans+ -> Semantic IDs
-        |                                  |
-        |                                  v
-        |                       Multi-task SID SFT
-        |                                  |
-        v                                  v
-Causal DIN pretraining ---------> Collaborative projector alignment
-                                           |
-                                           v
-                              Constrained SID generation
-                                           |
-                                           v
-                              HR / NDCG / bucket analysis
+item title + description -> content embedding -> RQ-VAE -> quantized embedding -> SID
+                                                     |              ^
+                                                     |              |
+train interactions -> SASRec -> frozen item CF embedding ------------+
 ```
 
-The language-model backbone and pretrained DIN are frozen by default during
-the alignment stage. Only the lightweight projector is trained, which separates
-behavior-model quality from cross-space alignment quality and keeps ablations
-easy to interpret.
+The tokenizer optimizes the three LETTER objectives:
 
-## Repository Layout
+```text
+L = L_semantic + alpha * L_collaborative + beta * L_diversity
+```
+
+- `L_semantic`: content reconstruction plus residual quantization loss.
+- `L_collaborative`: in-batch contrastive alignment between quantized item
+  representations and frozen SASRec item embeddings.
+- `L_diversity`: constrained-cluster regularization over every codebook to
+  reduce biased code assignment.
+
+LETTER's ranking-guided generation loss is not included. MiniOneRec SFT is held
+fixed so that changes can be attributed to item tokenization.
+
+## Layout
 
 ```text
 minionerec/
-|-- data/          # SFT/evaluation datasets and collaborative data adapter
-|-- models/        # Causal DIN, projector, collaborative CausalLM wrapper
-|-- training/      # SFT, DIN pretraining, collaborative alignment
-`-- evaluation/    # Constrained decoding, generation, ranking metrics
-scripts/           # Stable command-line wrappers
-rq/                # Semantic ID construction
-data/              # Amazon preprocessing scripts and tracked sample data
-tests/              # Collaborative module regression tests
-docs/               # Design rationale, experiment matrix, interview story
+|-- data/          # SFT and evaluation datasets
+|-- indexing/      # SASRec CF-embedding training
+|-- training/      # Original supervised MiniOneRec training
+`-- evaluation/    # Constrained generation and ranking metrics
+rq/
+|-- models/        # RQ-VAE and LETTER loss implementation
+|-- train_letter.py
+`-- generate_letter_indices.py
+scripts/           # Stable command wrappers
+tests/             # Tokenizer and data regression tests
+docs/              # Architecture and experiment narrative
 ```
 
-Root-level `sft.py`, `evaluate.py`, `calc.py`, `data.py`, and
-`LogitProcessor.py` are compatibility wrappers for the original command style.
-New Python code should import from `minionerec.*`.
+Root `sft.py`, `evaluate.py`, `calc.py`, `data.py`, and `LogitProcessor.py`
+remain compatibility wrappers for the original commands.
 
 ## Installation
 
@@ -83,97 +64,107 @@ conda activate minionerec-bridge
 pip install -r requirements.txt
 ```
 
-GPU requirements depend on the selected Qwen backbone. Model checkpoints and
-raw datasets are local artifacts and are excluded from Git.
+Model weights, raw data, generated embeddings, and checkpoints are excluded
+from Git.
 
-## End-to-End Usage
+## Pipeline
 
-### 1. Prepare Amazon data
+The examples below use `Office_Products`; replace paths consistently for other
+datasets.
+
+### 1. Prepare interactions
 
 ```bash
-bash data/amazon18_data_process.sh \
+python data/amazon18_data_process.py \
   --dataset Office_Products \
   --user_k 5 \
   --item_k 5 \
-  --output_path ./data
+  --output_path ./OneRec_data
 ```
 
-### 2. Encode item text and construct SIDs
+### 2. Encode item content
 
 ```bash
-bash rq/text2emb/amazon_text2emb.sh
-bash rq/rqvae.sh
-python rq/generate_indices.py
+python rq/text2emb/amazon_text2emb.py \
+  --dataset Office_Products \
+  --root ./OneRec_data \
+  --plm_checkpoint ./Qwen2.5-3B-Instruct \
+  --output_path ./OneRec_data/Office_Products/Office_Products.content.npy
 ```
 
-RQ-Kmeans+ and constrained RQ-Kmeans remain available under `rq/` as
-alternative SID constructors.
+### 3. Train SASRec and export CF embeddings
 
-### 3. Convert data and run SFT
+Only training interactions optimize SASRec. Validation interactions are used
+for early stopping and test interactions are never loaded.
+
+```bash
+python -m scripts.train_sasrec \
+  --train_file ./OneRec_data/Office_Products/Office_Products.train.inter \
+  --valid_file ./OneRec_data/Office_Products/Office_Products.valid.inter \
+  --item_file ./OneRec_data/Office_Products/Office_Products.item.json \
+  --output_path ./OneRec_data/Office_Products/Office_Products.cf-sasrec-32.npy \
+  --hidden_dim 32
+```
+
+The exporter sorts item keys numerically, matching the content-embedding order.
+It also writes an item-order manifest beside the `.npy` file.
+
+### 4. Train the LETTER tokenizer
+
+The defaults reproduce LETTER's tokenizer setup: four 256-entry codebooks,
+32-dimensional quantized/CF embeddings, `alpha=0.01`, and `beta=0.0001`.
+
+```bash
+python -m rq.train_letter \
+  --content_path ./OneRec_data/Office_Products/Office_Products.content.npy \
+  --cf_path ./OneRec_data/Office_Products/Office_Products.cf-sasrec-32.npy \
+  --output_dir ./outputs/office/letter-tokenizer
+```
+
+### 5. Generate MiniOneRec-compatible SIDs
+
+```bash
+python -m rq.generate_letter_indices \
+  --checkpoint_path ./outputs/office/letter-tokenizer/best_letter_model.pth \
+  --item_file ./OneRec_data/Office_Products/Office_Products.item.json \
+  --output_path ./OneRec_data/Office_Products/Office_Products.index.json
+```
+
+Convert the generated SIDs into MiniOneRec's train/valid/test CSV layout:
 
 ```bash
 python convert_dataset.py \
+  --data_dir ./OneRec_data \
   --dataset_name Office_Products \
-  --data_dir ./data/Office_Products \
-  --output_dir ./OneRec_data/Office_Products
-
-bash sft.sh
+  --output_dir ./OneRec_data/Office_Products \
+  --category Office_Products
 ```
 
-### 4. Pretrain the causal behavior encoder
+Then use `sft.sh`, `evaluate.py`, and `calc.py` exactly as in MiniOneRec. No CF
+model is loaded during SFT or inference.
+
+Tokenizer structure can be checked before the expensive SFT run:
 
 ```bash
-python -m scripts.train_din \
-  --train_file ./data/Amazon/train/Office_Products_5_2016-10-2018-11.csv \
-  --valid_file ./data/Amazon/valid/Office_Products_5_2016-10-2018-11.csv \
-  --output_path ./outputs/office/din.pt
+python -m scripts.evaluate_tokenizer \
+  --index_path ./OneRec_data/Office_Products/Office_Products.index.json \
+  --cf_path ./OneRec_data/Office_Products/Office_Products.cf-sasrec-32.npy \
+  --item_manifest ./OneRec_data/Office_Products/Office_Products.cf-sasrec-32.items.json
 ```
 
-### 5. Align behavioral signals with the SFT model
+## Controlled Evaluation
 
-```bash
-python -m scripts.train_collaborative \
-  --base_model ./SFT_Model/final_checkpoint \
-  --din_checkpoint ./outputs/office/din.pt \
-  --train_file ./data/Amazon/train/Office_Products_5_2016-10-2018-11.csv \
-  --eval_file ./data/Amazon/valid/Office_Products_5_2016-10-2018-11.csv \
-  --output_dir ./outputs/office/collaborative_adapter
-```
+Use identical data splits, content embeddings, codebook sizes, SFT settings,
+beam sizes, and seeds for:
 
-### 6. Generate and evaluate
+1. `Content SID`: original RQ-VAE objective.
+2. `LETTER-CF`: semantic plus collaborative regularization.
+3. `LETTER-Full`: semantic, collaborative, and diversity regularization.
+4. `Shuffled-CF`: item CF embeddings shuffled before LETTER training.
 
-```bash
-python evaluate.py \
-  --base_model ./SFT_Model/final_checkpoint \
-  --collaborative_adapter ./outputs/office/collaborative_adapter \
-  --info_file ./data/Amazon/info/Office_Products_5_2016-10-2018-11.txt \
-  --test_data_path ./data/Amazon/test/Office_Products_5_2016-10-2018-11.csv \
-  --result_json_data ./outputs/office/predictions.json
-
-python calc.py \
-  --path ./outputs/office/predictions.json \
-  --item_path ./data/Amazon/info/Office_Products_5_2016-10-2018-11.txt
-
-python -m minionerec.evaluation.collaborative_metrics \
-  --result_paths bridge=./outputs/office/predictions.json \
-  --item_info_file ./data/Amazon/info/Office_Products_5_2016-10-2018-11.txt
-```
-
-## Evaluation Protocol
-
-Use identical data splits, SID codebooks, SFT checkpoints, beam sizes, and
-random seeds for every comparison. At minimum, compare:
-
-1. SFT-only MiniOneRec baseline.
-2. DIN score-level late fusion.
-3. Random-vector injection with an equal-size projector.
-4. One-stage joint training.
-5. Two-stage alignment with a frozen DIN.
-6. Two-stage alignment with DIN fine-tuning.
-
-Report overall HR@10/NDCG@10 and buckets for history lengths `1-2`, `3-5`,
-`6-10`, and `>10`. Current resume numbers must not be attributed to the
-collaborative extension until this controlled experiment is complete.
+Report Recall/NDCG and tokenizer diagnostics: SID collision rate, per-level
+code usage, code entropy, and the shared-prefix rate of nearest CF neighbors.
+Do not claim gains until this controlled experiment has been run.
 
 ## Tests
 
@@ -181,20 +172,8 @@ collaborative extension until this controlled experiment is complete.
 python -m unittest discover -s tests -v
 ```
 
-The tests cover causal padding behavior, placeholder replacement, stage-2
-freezing, and invalid prompt detection. A tiny Qwen forward and beam-generation
-smoke test is also used during development.
-
-## Documentation
-
-- `docs/collaborative_optimization_story.md`: design decisions, ablations, and interview narrative.
-- `docs/REPOSITORY_STRUCTURE.md`: module ownership and artifact policy.
-
 ## Upstream and License
 
-This work is derived from MiniOneRec by Xiaoyu Kong et al. The original source,
-license, framework design, and citation are available at
-[AkaliKong/MiniOneRec](https://github.com/AkaliKong/MiniOneRec). This repository
-retains the Apache-2.0 `LICENSE` and does not claim ownership of upstream code.
-
-Our changes focus on the supervised semantic-behavior fusion path described above.
+This repository retains MiniOneRec's Apache-2.0 license. The collaborative
+tokenizer is an adaptation of LETTER's published method; the paper and official
+implementation are linked above and should be cited in derived research.

@@ -5,11 +5,7 @@ import torch
 import json
 import os
 from transformers import GenerationConfig, AutoTokenizer, AutoModelForCausalLM, LogitsProcessorList
-from minionerec.data import CollaborativeEvalSidDataset, EvalSidDataset
-from minionerec.models import (
-    COLLAB_TOKEN,
-    load_collaborative_adapter,
-)
+from minionerec.data import EvalSidDataset
 from .constrained_decoding import ConstrainedLogitsProcessor
 import random
 
@@ -50,8 +46,6 @@ def main(
     length_penalty: float=0.0,
     max_new_tokens: int = 256,
     num_beams: int = 100,
-    collaborative_adapter: str = "",
-    max_history_len: int = 50,
 ):
     random.seed(seed)
     set_seed(seed)
@@ -63,16 +57,7 @@ def main(
     print(category)
 
     tokenizer = AutoTokenizer.from_pretrained(base_model)
-    if collaborative_adapter:
-        tokenizer.add_special_tokens({'additional_special_tokens': [COLLAB_TOKEN]})
     model = AutoModelForCausalLM.from_pretrained(base_model, dtype=torch.bfloat16)
-    if collaborative_adapter:
-        model.resize_token_embeddings(len(tokenizer))
-        model = load_collaborative_adapter(model, collaborative_adapter)
-        expected_id = model.collab_token_id
-        actual_id = tokenizer.convert_tokens_to_ids(COLLAB_TOKEN)
-        if expected_id != actual_id:
-            raise ValueError(f"Collaborative token mismatch: adapter={expected_id}, tokenizer={actual_id}")
     model.eval()
     with open(info_file, 'r') as f:
         info = f.readlines()
@@ -153,20 +138,7 @@ def main(
     tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.padding_side = "left"
     
-    if collaborative_adapter:
-        val_dataset = CollaborativeEvalSidDataset(
-            train_file=test_data_path,
-            tokenizer=tokenizer,
-            max_len=2560,
-            category=category,
-            test=True,
-            K=K,
-            seed=seed,
-            max_history_len=max_history_len,
-            padding_idx=model.behavior_encoder.config.padding_idx,
-        )
-    else:
-        val_dataset = EvalSidDataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
+    val_dataset = EvalSidDataset(train_file=test_data_path, tokenizer=tokenizer, max_len=2560, category=category, test=True, K=K, seed=seed)
         
     encodings = [val_dataset[i] for i in range(len(val_dataset))]
     # encodings = [val_dataset[i] for i in indexes]
@@ -189,16 +161,11 @@ def main(
 
         padding_encodings = {"input_ids": []}
         attention_mask = []
-        collaborative_histories = []
-        collaborative_masks = []
 
         for  _ in encodings:
             L = len(_["input_ids"])
             padding_encodings["input_ids"].append([tokenizer.pad_token_id] * (maxLen - L) + _["input_ids"])
             attention_mask.append([0] * (maxLen - L) + [1] * L) 
-            if collaborative_adapter:
-                collaborative_histories.append(_["history_item_ids"])
-                collaborative_masks.append(_["history_mask"])
         
         # print(f"num_beams: {num_beams}")
         generation_config = GenerationConfig(
@@ -229,9 +196,6 @@ def main(
                 output_scores=True,
                 logits_processor=logits_processor,
             )
-            if collaborative_adapter:
-                generation_kwargs["history_item_ids"] = torch.tensor(collaborative_histories).to(device)
-                generation_kwargs["history_mask"] = torch.tensor(collaborative_masks).to(device)
             generation_output = model.generate(
                 torch.tensor(padding_encodings["input_ids"]).to(device),
                 **generation_kwargs,
