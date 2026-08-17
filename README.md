@@ -161,10 +161,6 @@ beam sizes, and seeds for:
 3. `SIDAlign-Full`: semantic, collaborative, and diversity regularization.
 4. `Shuffled-CF`: item CF embeddings shuffled before SIDAlign training.
 
-Report Recall/NDCG and tokenizer diagnostics: SID collision rate, per-level
-code usage, code entropy, and the shared-prefix rate of nearest CF neighbors.
-Do not claim gains until this controlled experiment has been run.
-
 ## Tests
 
 ```bash
